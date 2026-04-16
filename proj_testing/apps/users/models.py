@@ -1,55 +1,46 @@
-from django.db import models
-
-# Create your models here.
 import uuid
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
-from django.contrib.auth.models import BaseUserManager
+from django.db import models
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, user_name, password=None, role='user'):
+
+    def create_user(self, email, username, password=None, **extra_fields):
         if not email:
             raise ValueError("Email is required")
 
         email = self.normalize_email(email)
-        user = self.model(
-            uuid=uuid.uuid4(),
-            email=email,
-            user_name=user_name,
-            role=role
-        )
+        user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
-        user.save(using=self._db)
+        user.save()
         return user
 
-    def create_superuser(self, email, user_name, password):
-        user = self.create_user(email, user_name, password, role='admin')
-        user.is_staff = True
-        user.is_superuser = True
-        user.save(using=self._db)
-        return user
+    def create_superuser(self, email, username, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'admin')   # 🔥 IMPORTANT
+
+        return self.create_user(email, username, password, **extra_fields)
 
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractUser):
     ROLE_CHOICES = (
         ('admin', 'Admin'),
         ('user', 'User'),
     )
 
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user_name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
+    # Extra fields
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
 
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+    # Override email to make it unique
+    email = models.EmailField(unique=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    objects = UserManager()
-
+    # Use email for login
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['user_name']
+    REQUIRED_FIELDS = ['username']  # still required internally
+
+    objects = UserManager() 
 
     def __str__(self):
         return self.email
