@@ -1,0 +1,22 @@
+from ..models import Module
+
+class ModuleService:
+
+    @staticmethod
+    def get_all_modules():
+        return Module.objects.all()
+
+    @staticmethod
+    def create_module(user, data):
+        return Module.objects.create(created_by=user, **data)
+
+    @staticmethod
+    def update_module(module, data):
+        for key, value in data.items():
+            setattr(module, key, value)
+        module.save()
+        return module
+
+    @staticmethod
+    def delete_module(module):
+        module.delete()
